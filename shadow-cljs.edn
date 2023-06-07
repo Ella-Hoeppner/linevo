@@ -6,4 +6,4 @@
             :output-dir "out/public/js"
             :asset-path "/js"
             :compiler-options {:warnings {:infer false}}
-            :modules {:base {:init-fn demo.core/init}}}}}
+            :modules {:base {:init-fn demos.warp-iglu-demo/init}}}}}
