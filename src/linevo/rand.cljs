@@ -1,5 +1,11 @@
 (ns linevo.rand)
 
+(defn rand-fn-rand-int
+  ([rand-fn high]
+   (Math/floor (* (rand-fn) high)))
+  ([rand-fn low high]
+   (+ low (rand-fn-rand-int rand-fn (- high low)))))
+
 (defn rand-fn-rand-nth [rand-fn v]
   (nth v (Math/floor (* (count v) (rand-fn)))))
 

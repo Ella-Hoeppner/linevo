@@ -1,4 +1,4 @@
-(ns demos.float-unistack-demo
+(ns linevo.demos.float-unistack-demo
   (:require [sprog.util :as u]
             [sprog.webgl.core
              :refer [start-sprog!]
