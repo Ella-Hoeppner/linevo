@@ -5,7 +5,9 @@
                      update-sprog-state!]
              :refer-macros [with-context]]
             [sprog.iglu.core :refer [iglu->glsl]]
-            [sprog.iglu.chunks.misc :refer [pos-chunk]]
+            [sprog.iglu.chunks.misc :refer [pos-chunk
+                                            sigmoid-chunk]]
+            [sprog.iglu.chunks.color :refer [hsl-to-rgb-chunk]]
             [sprog.webgl.shaders :refer [run-purefrag-shader!]]
             [sprog.dom.canvas :refer [maximize-gl-canvas
                                       canvas-resolution]]
@@ -17,6 +19,8 @@
 (defn program->glsl [program]
   (iglu->glsl
    pos-chunk
+   sigmoid-chunk
+   hsl-to-rgb-chunk
    (compile-program program
                     {:dimensions 3})
    {:constants {:TAU u/TAU}}
@@ -29,19 +33,17 @@
                 time float}
      :outputs {frag-color vec4}
      :main
-     ((=vec3 warpedPos
-             (-> (vec3 (getPos) time)
-                 uni->bi
-                 twist))
+     ((=vec3 pos (vec3 (uni->bi (getPos)) time))
+      (=vec3 noise (-> (twist pos)
+                       (- pos)
+                       (* 10)))
       (= frag-color
-         (vec4 (-> warpedPos
-                   (distance (vec3 0))
-                   (* :TAU 5)
-                   sin
-                   bi->uni
-                   (pow 2.2)
-                   vec3)
-               1)))}))
+         (-> (vec3 (sigmoid noise.x)
+                   (* 0.5 (sigmoid noise.y))
+                   (sigmoid noise.z))
+             hsl2rgb
+             (pow (vec3 2.2))
+             (vec4 1))))}))
 
 (defn update-sprog! [{:keys [gl frag-glsl] :as state}]
   (with-context gl

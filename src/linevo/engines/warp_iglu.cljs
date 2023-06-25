@@ -2,7 +2,10 @@
   (:require [sprog.util :as u]
             [linevo.rand :refer [rand-fn-rand-int
                                  rand-fn-rand-nth
-                                 rand-direction]]))
+                                 rand-direction]]
+            [sprog.iglu.chunks.misc :refer [sympow-chunk]]
+            [sprog.iglu.core :refer [gensym-replace
+                                     combine-chunks]]))
 
 (defn specify-warp-op [op & [{:keys [dimensions
                                      rand-fn]
@@ -21,24 +24,47 @@
                                    frequency-min
                                    frequency-max
                                    amplitude-modifier
-                                   end-layer-chance]
+                                   end-layer-chance
+                                   osc-types
+                                   sin-pow-distribution
+                                   smooth-saw-distribution]
                             :or {rand-fn rand
-                                 end-layer-chance 0.25
-                                 frequency-min 0.25
-                                 frequency-max 10}}]]
-  (fn []
-    (if (< (rand-fn) end-layer-chance)
-      {:type :end-layer}
-      (specify-warp-op
-       {:type :warp
-        :osc (rand-fn-rand-nth rand-fn [:sin :saw])
-        :frequency (* frequency-min
-                      (Math/pow (/ frequency-max frequency-min)
-                                (rand-fn)))
-        :amplitude (cond-> (rand-fn)
-                     amplitude-modifier amplitude-modifier)}
-       {:rand-fn rand-fn
-        :dimensions dimensions}))))
+                                 end-layer-chance 0.5
+                                 frequency-min 0.8
+                                 frequency-max 20
+                                 sin-pow-distribution #(Math/pow 3
+                                                                 (- (* 2
+                                                                       (rand)) 
+                                                                    1))
+                                 smooth-saw-distribution #(* 0.1
+                                                             (Math/pow 0.1
+                                                                       (rand)))
+                                 osc-types #{:sin 
+                                             :saw 
+                                             :pulse 
+                                             :sin-pow 
+                                             :smooth-saw}}}]]
+  (let [osc-type-vec (vec osc-types)]
+    (fn []
+      (if (< (rand-fn) end-layer-chance)
+        {:type :end-layer}
+        (specify-warp-op
+         (let [osc-type (rand-fn-rand-nth rand-fn osc-type-vec)]
+           (merge
+            {:type :warp
+             :osc osc-type
+             :frequency (* frequency-min
+                           (Math/pow (/ frequency-max frequency-min)
+                                     (rand-fn)))
+             :amplitude (cond-> (rand-fn)
+                          amplitude-modifier amplitude-modifier)}
+            (case osc-type
+              :pulse {:pulse-width (rand-fn)}
+              :sin-pow {:power (sin-pow-distribution)}
+              :smooth-saw {:smoothness (smooth-saw-distribution)}
+              nil)))
+         {:rand-fn rand-fn
+          :dimensions dimensions})))))
 
 (defn respecify-program [program & [options]]
   (mapv (fn [op]
@@ -54,7 +80,7 @@
                                    op-generator-options]
                             :or {rand-fn rand
                                  dimensions 1
-                                 min-length 70
+                                 min-length 10
                                  max-length 80}}]]
   (vec (repeatedly (rand-fn-rand-int rand-fn min-length max-length)
                    (get-op-generator (merge
@@ -72,46 +98,67 @@
                                   dimensions]
                            :or {fn-name 'twist
                                 dimensions 1}}]]
-  (u/unquotable
-   (let [x-type ('[float vec2 vec3 vec4] (dec dimensions))]
-     {:functions
-      {fn-name
-       {'([~x-type] ~x-type)
-        (concat
-         '([x]
-           (= ~x-type offset ~(if (= dimensions 0) 'float (list x-type 0))))
-         (mapcat (fn [op-map]
-                   (case (:type op-map)
-                     :warp
-                     (let [{:keys [dot-direction
-                                   offset-direction
-                                   frequency
-                                   amplitude
-                                   phase]}
-                           op-map]
-                       '((+= offset
-                             ~(concat
-                               '(-> x
-                                    ~(list (if (= 1 dimensions) '* 'dot)
-                                           (if (= 1 dimensions)
-                                             frequency
-                                             (cons x-type
-                                                   (map (partial * frequency)
-                                                        dot-direction))))
-                                    (+ ~phase))
-                               (case (:osc op-map)
-                                 :sin '((* ~u/TAU)
-                                        sin)
-                                 :saw '((mod 1)))
-                               '((* ~(if (= 1 dimensions)
-                                       (* amplitude (first offset-direction))
-                                       (cons x-type
-                                             (map (partial * amplitude)
-                                                  offset-direction)))))))))
-                     :end-layer
-                     '((+= x offset)
-                       (= offset ~(if (= dimensions 0)
-                                    0
-                                    (list x-type 0))))))
-                 (preprocess-program program))
-         '(x))}}})))
+  (combine-chunks
+   sympow-chunk
+   (u/unquotable
+    (let [x-type ('[float vec2 vec3 vec4] (dec dimensions))]
+      {:functions
+       {fn-name
+        {'([~x-type] ~x-type)
+         (concat
+          '([x]
+            (= ~x-type offset ~(if (= dimensions 0) 'float (list x-type 0))))
+          (mapcat
+           (fn [op-map]
+             (case (:type op-map)
+               :warp
+               (let [{:keys [dot-direction
+                             offset-direction
+                             frequency
+                             amplitude
+                             phase]}
+                     op-map]
+                 (gensym-replace
+                  [:osc-pos]
+                  '((=float :osc-pos
+                            (-> x
+                                ~(list (if (= 1 dimensions) '* 'dot)
+                                       (if (= 1 dimensions)
+                                         frequency
+                                         (cons x-type
+                                               (map (partial * frequency)
+                                                    dot-direction))))
+                                (+ ~phase)))
+                    (+= offset
+                        (* ~(if (= 1 dimensions)
+                              (* amplitude (first offset-direction))
+                              (cons x-type
+                                    (map (partial * amplitude)
+                                         offset-direction)))
+                           ~(case (:osc op-map)
+                              :sin '(sin (* :osc-pos ~u/TAU))
+                              :saw '(uni->bi (mod :osc-pos 1))
+                              :pulse '(if (< (mod :osc-pos 1)
+                                             ~(:pulse-width op-map))
+                                        -1
+                                        1)
+                              :sin-pow '(sympow (sin (* :osc-pos ~u/TAU))
+                                                ~(:power op-map))
+                              :smooth-saw
+                              (let [smoothness (:smoothness op-map)]
+                                '(* (- 1 (/ (* 2
+                                               (acos (* (- 1 ~smoothness)
+                                                        (- (cos (* :osc-pos 
+                                                                   ~Math/PI))))))
+                                            ~Math/PI))
+                                    (* 2
+                                       (/ (atan (/ (sin (* :osc-pos ~Math/PI))
+                                                   ~smoothness))
+                                          ~Math/PI))))))))))
+               :end-layer
+               '((+= x offset)
+                 (= offset ~(if (= dimensions 0)
+                              0
+                              (list x-type 0))))))
+           (preprocess-program program))
+          '(x))}}}))))
