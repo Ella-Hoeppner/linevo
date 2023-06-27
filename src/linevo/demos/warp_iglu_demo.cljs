@@ -16,13 +16,17 @@
                                               compile-program]]
             [sprog.input.keyboard :refer [add-key-callback]]))
 
+(def program-options
+  {:dimensions 3
+   :op-generator-options
+   {:amplitude-modifier (partial * 0.1)}})
+
 (defn program->glsl [program]
   (iglu->glsl
    pos-chunk
    sigmoid-chunk
    hsl-to-rgb-chunk
-   (compile-program program
-                    {:dimensions 3})
+   (compile-program program program-options)
    {:constants {:TAU u/TAU}}
    '{:version "300 es"
      :precision {float highp
@@ -57,10 +61,7 @@
   state)
 
 (defn init-sprog! [gl]
-  (let [program (generate-program
-                 {:dimensions 3
-                  :op-generator-options
-                  {:amplitude-modifier (partial * 0.1)}})]
+  (let [program (generate-program program-options)]
     {:program program
      :frag-glsl (program->glsl program)}))
 
@@ -76,7 +77,6 @@
    #(update-sprog-state!
      (fn [{:keys [program] :as state}]
        (merge state
-              (let [new-program (respecify-program program
-                                                   {:dimensions 3})]
+              (let [new-program (respecify-program program program-options)]
                 {:program new-program
                  :frag-glsl (program->glsl new-program)}))))))

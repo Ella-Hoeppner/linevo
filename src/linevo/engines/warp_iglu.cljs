@@ -17,7 +17,9 @@
           (rand-direction rand-fn dimensions)}
          (when (> dimensions 1)
            {:dot-direction
-            (rand-direction rand-fn dimensions)})))
+            (rand-direction rand-fn dimensions)
+            :radial-center
+            (u/genv dimensions (- 1 (* 2 (rand-fn))))})))
 
 (defn get-op-generator [& [{:keys [rand-fn
                                    dimensions
@@ -26,23 +28,22 @@
                                    amplitude-modifier
                                    end-layer-chance
                                    osc-types
+                                   radial-chance
                                    sin-pow-distribution
                                    smooth-saw-distribution]
                             :or {rand-fn rand
                                  end-layer-chance 0.5
                                  frequency-min 0.8
                                  frequency-max 20
-                                 sin-pow-distribution #(Math/pow 3
-                                                                 (- (* 2
-                                                                       (rand)) 
-                                                                    1))
-                                 smooth-saw-distribution #(* 0.1
-                                                             (Math/pow 0.1
-                                                                       (rand)))
-                                 osc-types #{:sin 
-                                             :saw 
-                                             :pulse 
-                                             :sin-pow 
+                                 radial-chance 0.5
+                                 sin-pow-distribution
+                                 #(Math/pow 3 (- (* 2 %) 1))
+                                 smooth-saw-distribution
+                                 #(* 0.1 (Math/pow 0.1 %))
+                                 osc-types #{:sin
+                                             :saw
+                                             :pulse
+                                             :sin-pow
                                              :smooth-saw}}}]]
   (let [osc-type-vec (vec osc-types)]
     (fn []
@@ -60,9 +61,12 @@
                           amplitude-modifier amplitude-modifier)}
             (case osc-type
               :pulse {:pulse-width (rand-fn)}
-              :sin-pow {:power (sin-pow-distribution)}
-              :smooth-saw {:smoothness (smooth-saw-distribution)}
-              nil)))
+              :sin-pow {:power (sin-pow-distribution (rand-fn))}
+              :smooth-saw {:smoothness (smooth-saw-distribution (rand-fn))}
+              nil)
+            (when (and (> dimensions 1)
+                       (< (rand-fn) radial-chance))
+              {:radial? true})))
          {:rand-fn rand-fn
           :dimensions dimensions})))))
 
@@ -116,19 +120,25 @@
                              offset-direction
                              frequency
                              amplitude
-                             phase]}
+                             phase
+                             radial?
+                             radial-center]}
                      op-map]
                  (gensym-replace
                   [:osc-pos]
                   '((=float :osc-pos
-                            (-> x
-                                ~(list (if (= 1 dimensions) '* 'dot)
-                                       (if (= 1 dimensions)
-                                         frequency
-                                         (cons x-type
-                                               (map (partial * frequency)
-                                                    dot-direction))))
-                                (+ ~phase)))
+                            (+ ~phase
+                               ~(if (= 1 dimensions)
+                                  (list '* frequency)
+                                  (if radial?
+                                    '(* ~frequency
+                                        (distance ~(cons x-type
+                                                         (seq radial-center))
+                                                  x))
+                                    '(dot ~(cons x-type
+                                                 (map (partial * frequency)
+                                                      dot-direction))
+                                          x)))))
                     (+= offset
                         (* ~(if (= 1 dimensions)
                               (* amplitude (first offset-direction))
@@ -147,9 +157,10 @@
                               :smooth-saw
                               (let [smoothness (:smoothness op-map)]
                                 '(* (- 1 (/ (* 2
-                                               (acos (* (- 1 ~smoothness)
-                                                        (- (cos (* :osc-pos 
-                                                                   ~Math/PI))))))
+                                               (acos
+                                                (* (- 1 ~smoothness)
+                                                   (- (cos (* :osc-pos
+                                                              ~Math/PI))))))
                                             ~Math/PI))
                                     (* 2
                                        (/ (atan (/ (sin (* :osc-pos ~Math/PI))
