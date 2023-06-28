@@ -2,7 +2,8 @@
   (:require [sprog.util :as u]
             [sprog.webgl.core
              :refer [start-sprog!
-                     update-sprog-state!]
+                     sprog-state
+                     merge-sprog-state!]
              :refer-macros [with-context]]
             [sprog.iglu.core :refer [iglu->glsl]]
             [sprog.iglu.chunks.misc :refer [pos-chunk
@@ -12,14 +13,18 @@
             [sprog.dom.canvas :refer [maximize-gl-canvas
                                       canvas-resolution]]
             [linevo.engines.warp-iglu :refer [respecify-program
-                                              generate-program
+                                              get-op-generator
                                               compile-program]]
-            [sprog.input.keyboard :refer [add-key-callback]]))
+            [linevo.controllers.basic :refer [create-controller!]]
+            [sprog.input.keyboard :refer [add-left-right-key-callback
+                                          add-key-callback]]))
 
 (def program-options
-  {:dimensions 3
-   :op-generator-options
-   {:amplitude-modifier (partial * 0.1)}})
+  {:dimensions 3})
+
+(def op-generator
+  (get-op-generator (merge program-options
+                           {:amplitude-modifier (partial * 0.1)})))
 
 (defn program->glsl [program]
   (iglu->glsl
@@ -60,10 +65,29 @@
         "time" (* 0.01 (u/seconds-since-startup))})))
   state)
 
+(defn display-program! [program]
+  (merge-sprog-state!
+   {:program program
+    :frag-glsl (program->glsl program)}))
+
 (defn init-sprog! [gl]
-  (let [program (generate-program program-options)]
-    {:program program
-     :frag-glsl (program->glsl program)}))
+  (let [{:keys [move
+                get-program]
+         :as controller}
+        (create-controller! op-generator
+                            {:scratch-min-length 10
+                             :scratch-max-length 80})
+        display! #(display-program! (get-program))]
+    (doseq [[key-name fn-name]
+            [["s" :scratch]
+             ["b" :breed]
+             ["x" :delete]
+             ["z" :undelete]]]
+      (add-key-callback key-name #(do ((fn-name controller)) (display!))))
+    (add-left-right-key-callback #(do (move %) (display!)))
+    (let [program (get-program)]
+      {:program program
+       :frag-glsl (program->glsl program)})))
 
 (defn init []
   (js/window.addEventListener
@@ -74,9 +98,5 @@
       update-sprog!)))
   (add-key-callback
    " "
-   #(update-sprog-state!
-     (fn [{:keys [program] :as state}]
-       (merge state
-              (let [new-program (respecify-program program program-options)]
-                {:program new-program
-                 :frag-glsl (program->glsl new-program)}))))))
+   #(display-program! (respecify-program (:program (sprog-state))
+                                         program-options))))

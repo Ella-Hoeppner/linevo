@@ -77,21 +77,6 @@
             op))
         program))
 
-(defn generate-program [& [{:keys [dimensions
-                                   min-length
-                                   max-length
-                                   rand-fn
-                                   op-generator-options]
-                            :or {rand-fn rand
-                                 dimensions 1
-                                 min-length 10
-                                 max-length 80}}]]
-  (vec (repeatedly (rand-fn-rand-int rand-fn min-length max-length)
-                   (get-op-generator (merge
-                                      op-generator-options
-                                      {:rand-fn rand-fn
-                                       :dimensions dimensions})))))
-
 (defn preprocess-program [program]
   (if (= (:type (last program)) :end-layer)
     program
@@ -125,7 +110,8 @@
                              radial-center]}
                      op-map]
                  (gensym-replace
-                  [:osc-pos]
+                  [:osc-pos
+                   :osc-value]
                   '((=float :osc-pos
                             (+ ~phase
                                ~(if (= 1 dimensions)
@@ -139,33 +125,36 @@
                                                  (map (partial * frequency)
                                                       dot-direction))
                                           x)))))
-                    (+= offset
-                        (* ~(if (= 1 dimensions)
-                              (* amplitude (first offset-direction))
-                              (cons x-type
-                                    (map (partial * amplitude)
-                                         offset-direction)))
-                           ~(case (:osc op-map)
-                              :sin '(sin (* :osc-pos ~u/TAU))
-                              :saw '(uni->bi (mod :osc-pos 1))
-                              :pulse '(if (< (mod :osc-pos 1)
-                                             ~(:pulse-width op-map))
-                                        -1
-                                        1)
-                              :sin-pow '(sympow (sin (* :osc-pos ~u/TAU))
-                                                ~(:power op-map))
-                              :smooth-saw
-                              (let [smoothness (:smoothness op-map)]
-                                '(* (- 1 (/ (* 2
-                                               (acos
-                                                (* (- 1 ~smoothness)
-                                                   (- (cos (* :osc-pos
-                                                              ~Math/PI))))))
-                                            ~Math/PI))
-                                    (* 2
-                                       (/ (atan (/ (sin (* :osc-pos ~Math/PI))
-                                                   ~smoothness))
-                                          ~Math/PI))))))))))
+                    (=float :osc-value
+                            ~(case (:osc op-map)
+                               :sin '(sin (* :osc-pos ~u/TAU))
+                               :saw '(uni->bi (mod :osc-pos 1))
+                               :pulse '(if (< (mod :osc-pos 1)
+                                              ~(:pulse-width op-map))
+                                         -1
+                                         1)
+                               :sin-pow '(sympow (sin (* :osc-pos ~u/TAU))
+                                                 ~(:power op-map))
+                               :smooth-saw
+                               (let [smoothness (:smoothness op-map)]
+                                 '(* (- 1
+                                        (/ (* 2
+                                              (acos
+                                               (* (- 1 ~smoothness)
+                                                  (- (cos (* :osc-pos
+                                                             ~Math/PI))))))
+                                           ~Math/PI))
+                                     (* 2
+                                        (/ (atan
+                                            (/ (sin (* :osc-pos ~Math/PI))
+                                               ~smoothness))
+                                           ~Math/PI))))))
+                    (+= offset (* ~(if (= 1 dimensions)
+                                     (* amplitude (first offset-direction))
+                                     (cons x-type
+                                           (map (partial * amplitude)
+                                                offset-direction)))
+                                  :osc-value)))))
                :end-layer
                '((+= x offset)
                  (= offset ~(if (= dimensions 0)
