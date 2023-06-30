@@ -21,8 +21,7 @@
 (def op-generator (get-op-generator))
 
 (def frag-shader
-  '{:version "300 es"
-    :precision {float highp
+  '{:precision {float highp
                 int highp
                 usampler2D highp}
     :uniforms {size vec2

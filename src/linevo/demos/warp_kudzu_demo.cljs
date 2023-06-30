@@ -1,18 +1,18 @@
-(ns linevo.demos.warp-iglu-demo
+(ns linevo.demos.warp-kudzu-demo
   (:require [sprog.util :as u]
             [sprog.webgl.core
              :refer [start-sprog!
                      sprog-state
                      merge-sprog-state!]
              :refer-macros [with-context]]
-            [sprog.iglu.core :refer [iglu->glsl]]
-            [sprog.iglu.chunks.misc :refer [pos-chunk
+            [sprog.kudzu.core :refer [kudzu->glsl]]
+            [sprog.kudzu.chunks.misc :refer [pos-chunk
                                             sigmoid-chunk]]
-            [sprog.iglu.chunks.color :refer [hsl-to-rgb-chunk]]
+            [sprog.kudzu.chunks.color :refer [hsl-to-rgb-chunk]]
             [sprog.webgl.shaders :refer [run-purefrag-shader!]]
             [sprog.dom.canvas :refer [maximize-gl-canvas
                                       canvas-resolution]]
-            [linevo.engines.warp-iglu :refer [respecify-program
+            [linevo.engines.warp-kudzu :refer [respecify-program
                                               get-op-generator
                                               compile-program]]
             [linevo.controllers.basic :refer [create-controller!]]
@@ -27,14 +27,13 @@
                            {:amplitude-modifier (partial * 0.1)})))
 
 (defn program->glsl [program]
-  (iglu->glsl
+  (kudzu->glsl
    pos-chunk
    sigmoid-chunk
    hsl-to-rgb-chunk
    (compile-program program program-options)
    {:constants {:TAU u/TAU}}
-   '{:version "300 es"
-     :precision {float highp
+   '{:precision {float highp
                  int highp
                  usampler2D highp}
      :uniforms {size vec2
