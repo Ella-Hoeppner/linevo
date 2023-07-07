@@ -7,14 +7,15 @@
              :refer-macros [with-context]]
             [sprog.kudzu.core :refer [kudzu->glsl]]
             [sprog.kudzu.chunks.misc :refer [pos-chunk
-                                            sigmoid-chunk]]
+                                             sigmoid-chunk]]
             [sprog.kudzu.chunks.color :refer [hsl-to-rgb-chunk]]
             [sprog.webgl.shaders :refer [run-purefrag-shader!]]
             [sprog.dom.canvas :refer [maximize-gl-canvas
                                       canvas-resolution]]
             [linevo.engines.warp-kudzu :refer [respecify-program
-                                              get-op-generator
-                                              compile-program]]
+                                               get-op-generator
+                                               compile-program
+                                               preprocess]]
             [linevo.controllers.basic :refer [create-controller!]]
             [sprog.input.keyboard :refer [add-left-right-key-callback
                                           add-key-callback]]))
@@ -75,7 +76,8 @@
          :as controller}
         (create-controller! op-generator
                             {:scratch-min-length 10
-                             :scratch-max-length 80})
+                             :scratch-max-length 80
+                             :preprocessor preprocess})
         display! #(display-program! (get-program))]
     (doseq [[key-name fn-name]
             [["s" :scratch]

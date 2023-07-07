@@ -6,4 +6,4 @@
             :output-dir "out/public/js"
             :asset-path "/js"
             :compiler-options {:warnings {:infer false}}
-            :modules {:base {:init-fn linevo.demos.float-unistack-demo/init}}}}}
+            :modules {:base {:init-fn linevo.demos.warp-kudzu-demo/init}}}}}

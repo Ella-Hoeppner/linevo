@@ -10,19 +10,24 @@
                                      breed-min-length
                                      breed-max-length
                                      initial-population-size
-                                     initial-population]
+                                     initial-population
+                                     preprocessor]
                               :or {rand-fn rand
                                    scratch-min-length 5
                                    scratch-max-length 15
                                    breed-min-length 1
                                    breed-max-length 40
-                                   initial-population-size 1}}]]
-  (let [scratch-program #(vec (repeatedly
-                               (rand-fn-rand-int
-                                rand-fn
-                                scratch-min-length
-                                (inc scratch-max-length))
-                               op-generator))
+                                   initial-population-size 1
+                                   preprocessor identity}}]]
+  (let [scratch-program (fn []
+                          (some preprocessor
+                                (repeatedly
+                                 #(vec (repeatedly
+                                        (rand-fn-rand-int
+                                         rand-fn
+                                         scratch-min-length
+                                         (inc scratch-max-length))
+                                        op-generator)))))
         population-atom (atom (vec (if initial-population
                                      initial-population
                                      (repeatedly initial-population-size
@@ -30,10 +35,11 @@
         deletions-atom (atom ())
         index-atom (atom 0)
         breed-program (fn []
-                        (some #(when (<= breed-min-length
-                                         (count %)
-                                         breed-max-length)
-                                 %)
+                        (some (comp preprocessor
+                                    #(when (<= breed-min-length
+                                               (count %)
+                                               breed-max-length)
+                                       %))
                               (repeatedly #(breed op-generator
                                                   @population-atom))))
         rectify-index! (fn []

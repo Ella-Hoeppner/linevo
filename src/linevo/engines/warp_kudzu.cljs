@@ -32,7 +32,7 @@
                                    sin-pow-distribution
                                    smooth-saw-distribution]
                             :or {rand-fn rand
-                                 end-layer-chance 0.5
+                                 end-layer-chance 0.25
                                  frequency-min 0.8
                                  frequency-max 20
                                  radial-chance 0.5
@@ -77,10 +77,16 @@
             op))
         program))
 
-(defn preprocess-program [program]
-  (if (= (:type (last program)) :end-layer)
-    program
-    (conj program {:type :end-layer})))
+(defn preprocess [program]
+  (reduce (fn [new-program op]
+            (if (= (:type op) :end-layer)
+              (if (or (empty? new-program)
+                      (= (:type (peek new-program)) :end-layer))
+                new-program
+                (conj new-program op))
+              (conj new-program op)))
+          []
+          (conj program {:type :end-layer})))
 
 (defn compile-program [program
                        & [{:keys [fn-name
@@ -160,5 +166,5 @@
                 (= offset ~(if (= dimensions 0)
                              0
                              (list x-type 0))))))
-          (preprocess-program program))
+          program)
          '(x))}}))))
