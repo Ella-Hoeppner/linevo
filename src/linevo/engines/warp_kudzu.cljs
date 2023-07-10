@@ -1,11 +1,9 @@
 (ns linevo.engines.warp-kudzu
   (:require [sprog.util :as u]
-            [linevo.rand :refer [rand-fn-rand-int
-                                 rand-fn-rand-nth
+            [linevo.rand :refer [rand-fn-rand-nth
                                  rand-direction]]
             [sprog.kudzu.chunks.misc :refer [sympow-chunk]]
-            [sprog.kudzu.core :refer [gensym-replace
-                                      combine-chunks]]))
+            [sprog.kudzu.core :refer [combine-chunks]]))
 
 (defn specify-warp-op [op & [{:keys [dimensions
                                      rand-fn]
@@ -103,7 +101,7 @@
          '(~x-type
            [x ~x-type]
            (= ~x-type offset ~(if (= dimensions 0) 'float (list x-type 0))))
-         (mapcat
+         (map
           (fn [op-map]
             (case (:type op-map)
               :warp
@@ -115,56 +113,54 @@
                             radial?
                             radial-center]}
                     op-map]
-                (gensym-replace
-                 [:osc-pos
-                  :osc-value]
-                 '((=float :osc-pos
-                           (+ ~phase
-                              ~(if (= 1 dimensions)
-                                 (list '* frequency)
-                                 (if radial?
-                                   '(* ~frequency
-                                       (distance ~(cons x-type
-                                                        (seq radial-center))
-                                                 x))
-                                   '(dot ~(cons x-type
-                                                (map (partial * frequency)
-                                                     dot-direction))
-                                         x)))))
-                   (=float :osc-value
-                           ~(case (:osc op-map)
-                              :sin '(sin (* :osc-pos ~u/TAU))
-                              :saw '(uni->bi (mod :osc-pos 1))
-                              :pulse '(if (< (mod :osc-pos 1)
-                                             ~(:pulse-width op-map))
-                                        -1
-                                        1)
-                              :sin-pow '(sympow (sin (* :osc-pos ~u/TAU))
-                                                ~(:power op-map))
-                              :smooth-saw
-                              (let [smoothness (:smoothness op-map)]
-                                '(* (- 1
-                                       (/ (* 2
-                                             (acos
-                                              (* (- 1 ~smoothness)
-                                                 (- (cos (* :osc-pos
-                                                            ~Math/PI))))))
-                                          ~Math/PI))
-                                    (* 2
-                                       (/ (atan
-                                           (/ (sin (* :osc-pos ~Math/PI))
-                                              ~smoothness))
-                                          ~Math/PI))))))
-                   (+= offset (* ~(if (= 1 dimensions)
-                                    (* amplitude (first offset-direction))
-                                    (cons x-type
-                                          (map (partial * amplitude)
-                                               offset-direction)))
-                                 :osc-value)))))
+                '(:block
+                  (=float osc-pos
+                          (+ ~phase
+                             ~(if (= 1 dimensions)
+                                (list '* frequency)
+                                (if radial?
+                                  '(* ~frequency
+                                      (distance ~(cons x-type
+                                                       (seq radial-center))
+                                                x))
+                                  '(dot ~(cons x-type
+                                               (map (partial * frequency)
+                                                    dot-direction))
+                                        x)))))
+                  (=float osc-value
+                          ~(case (:osc op-map)
+                             :sin '(sin (* osc-pos ~u/TAU))
+                             :saw '(uni->bi (mod osc-pos 1))
+                             :pulse '(if (< (mod osc-pos 1)
+                                            ~(:pulse-width op-map))
+                                       -1
+                                       1)
+                             :sin-pow '(sympow (sin (* osc-pos ~u/TAU))
+                                               ~(:power op-map))
+                             :smooth-saw
+                             (let [smoothness (:smoothness op-map)]
+                               '(* (- 1
+                                      (/ (* 2
+                                            (acos
+                                             (* (- 1 ~smoothness)
+                                                (- (cos (* osc-pos
+                                                           ~Math/PI))))))
+                                         ~Math/PI))
+                                   (* 2
+                                      (/ (atan
+                                          (/ (sin (* osc-pos ~Math/PI))
+                                             ~smoothness))
+                                         ~Math/PI))))))
+                  (+= offset (* ~(if (= 1 dimensions)
+                                   (* amplitude (first offset-direction))
+                                   (cons x-type
+                                         (map (partial * amplitude)
+                                              offset-direction)))
+                                osc-value))))
               :end-layer
-              '((+= x offset)
-                (= offset ~(if (= dimensions 0)
-                             0
-                             (list x-type 0))))))
+              '(do (+= x offset)
+                   (= offset ~(if (= dimensions 0)
+                                0
+                                (list x-type 0))))))
           program)
          '(x))}}))))
