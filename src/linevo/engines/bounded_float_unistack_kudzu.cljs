@@ -1,5 +1,8 @@
 (ns linevo.engines.bounded-float-unistack-kudzu
   (:require [clojure.walk :refer [prewalk]]
+            [linevo.rand :refer [rand-fn-rand-nth]]
+            [linevo.engines.shared.constant-generator 
+             :refer [get-numeric-constant-generator]]
             [sprog.util :as u]))
 
 (def environment
@@ -19,9 +22,9 @@
           (= [stack -1]
              (* (sign [stack 0])
                 (pow (abs [stack 0])
-                     (if (>= [stack 1] 0)
-                       [stack 1]
-                       (/ (- [stack 1]))))))]
+                     (if (>= [stack -1] 0)
+                       [stack -1]
+                       (/ (- [stack -1]))))))]
     :min [2 -1 (= [stack -1] (min [stack 0] [stack -1]))]
     :max [2 -1 (= [stack -1] (max [stack 0] [stack -1]))]
     :drop [2 -1]
@@ -35,7 +38,7 @@
                  (sqrt (abs [stack 0]))))]
     :if [3 -2
          (= [stack -2]
-            (if (>= [stack 0])
+            (if (>= [stack 0] 0)
               [stack -1]
               [stack -2]))]
     :dup [1 1 (= [stack 1] [stack 0])]
@@ -66,19 +69,21 @@
           [arg-count]
           program))
 
-(defn preprocess [arg-count program]
-  (second
-   (reduce (fn [[stack-size processed-program] op]
-             (when processed-program
-               (if (number? op)
-                 [(inc stack-size) (conj processed-program op)]
-                 (if-let [new-stack-size (applied-size stack-size
-                                                          (environment op))]
-                   [new-stack-size
-                    (conj processed-program op)]
-                   [stack-size processed-program]))))
-           [arg-count []]
-           program)))
+(defn preprocess [in-count out-count program]
+  (when-let [[final-stack-size final-program]
+             (reduce (fn [[stack-size processed-program] op]
+                       (when processed-program
+                         (if (number? op)
+                           [(inc stack-size) (conj processed-program op)]
+                           (if-let [new-stack-size (applied-size stack-size
+                                                                 (environment op))]
+                             [new-stack-size
+                              (conj processed-program op)]
+                             [stack-size processed-program]))))
+                     [in-count []]
+                     program)]
+    (when (>= final-stack-size out-count)
+      final-program)))
 
 (defn compile-program [in-count out-count program
                        & [{:keys [fn-name]
@@ -91,7 +96,7 @@
       {fn-name
        (concat
         '([float ~(str out-count)]
-          [input-args [float (str in-count)]]
+          [input-args [float ~(str in-count)]]
           (= [float ~(str max-stack-size)]
              stack
              ~(vec (cons 'float
@@ -103,16 +108,17 @@
         (map (fn [op stack-size]
                (if (number? op)
                  '(= [stack ~(str stack-size)] ~op)
-                 (cons 'block
-                       (prewalk (fn [form]
-                                  (if (and (vector? form)
-                                           (= (first form) 'stack))
-                                    (update form
-                                            1
-                                            (comp str 
-                                                  (partial + (dec stack-size))))
-                                    form))
-                                (drop 2 (environment op))))))
+                 (concat (list :block
+                               (str "// " op))
+                         (prewalk (fn [form]
+                                    (if (and (vector? form)
+                                             (= (first form) 'stack))
+                                      (update form
+                                              1
+                                              (comp str
+                                                    (partial + (dec stack-size))))
+                                      form))
+                                  (drop 2 (environment op))))))
              program
              stack-sizes)
         (list (vec (cons 'float
@@ -121,3 +127,16 @@
                                               ['stack (str i)])
                                             (range ending-stack-size))
                                        (repeat 0)))))))}})))
+
+(defn get-op-generator [& [{:keys [rand-fn
+                                   ops
+                                   constant-chance
+                                   constant-options]
+                            :or {rand-fn rand
+                                 ops (vec (keys environment))
+                                 constant-chance 0.1}}]]
+  (let [constant-generator (get-numeric-constant-generator constant-options)]
+    (fn []
+      (if (< (rand-fn) constant-chance)
+        (constant-generator)
+        (rand-fn-rand-nth rand-fn ops)))))
