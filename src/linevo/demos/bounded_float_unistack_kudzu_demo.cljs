@@ -53,9 +53,18 @@
           result 
           (evolved-fn [float pos.x pos.y]))
        (= frag-color
-          (vec4 (bi->uni [result "0"])
-                (bi->uni [result "1"])
-                (bi->uni [result "2"])
+          (vec4 (if (|| (> [result "0"] 1)
+                        (< [result "0"] -1))
+                  1
+                  0)
+                (if (|| (> [result "1"] 1)
+                        (< [result "1"] -1))
+                  1
+                  0)
+                (if (|| (> [result "2"] 1)
+                        (< [result "2"] -1))
+                  1
+                  0)
                 1)))})))
 
 (defn update-sprog! [{:keys [gl frag-glsl] :as state}]
@@ -72,7 +81,7 @@
 (defn display-program! [program]
   (merge-sprog-state!
    {:program program
-    :frag-glsl (program->glsl program)}))
+    :frag-glsl (u/log (program->glsl program))}))
 
 (defn init-sprog! [gl]
   (let [{:keys [move
@@ -80,8 +89,8 @@
          :as controller}
         (create-controller!
          op-generator
-         {:scratch-min-length 30
-          :scratch-max-length 100
+         {:scratch-min-length 5
+          :scratch-max-length 10
           :preprocessor (partial preprocess 
                                  evolved-fn-in-count 
                                  evolved-fn-out-count)})
@@ -95,7 +104,7 @@
     (add-left-right-key-callback #(do (move %) (display!)))
     (let [program (get-program)]
       {:program program
-       :frag-glsl (program->glsl program)})))
+       :frag-glsl (u/log (program->glsl program))})))
 
 (defn init []
   (js/window.addEventListener
