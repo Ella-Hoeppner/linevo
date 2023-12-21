@@ -1,7 +1,6 @@
 (ns linevo.controllers.basic
   (:require [linevo.rand :refer [rand-fn-rand-int]]
-            [linevo.gp :refer [breed]]
-            [sprog.util :as u]))
+            [linevo.gp :refer [breed]]))
 
 (defn create-controller! [op-generator
                           & [{:keys [rand-fn

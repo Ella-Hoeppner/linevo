@@ -1,6 +1,5 @@
 (ns linevo.gp
-  (:require [sprog.util :as u]
-            [linevo.rand :refer [rand-fn-rand-nth
+  (:require [linevo.rand :refer [rand-fn-rand-nth
                                 rand-fn-geometric
                                 rand-fn-shuffle]]))
 

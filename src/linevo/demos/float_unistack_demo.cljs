@@ -1,19 +1,19 @@
 (ns linevo.demos.float-unistack-demo
-  (:require [sprog.util :as u]
-            [sprog.webgl.core
-             :refer [start-sprog!
-                     sprog-context
-                     sprog-state]
+  (:require [hollow.util :as u]
+            [hollow.webgl.core
+             :refer [start-hollow!
+                     hollow-context
+                     hollow-state]
              :refer-macros [with-context]]
-            [sprog.webgl.shaders :refer [run-purefrag-shader!]]
-            [sprog.webgl.textures :refer [create-tex
+            [hollow.webgl.shaders :refer [run-purefrag-shader!]]
+            [hollow.webgl.textures :refer [create-tex
                                           set-tex-data!]]
-            [sprog.dom.canvas :refer [maximize-gl-canvas
+            [hollow.dom.canvas :refer [maximize-gl-canvas
                                       canvas-resolution]]
             [linevo.engines.float-unistack :refer [eval-program
                                                    get-op-generator]]
             [linevo.controllers.basic :refer [create-controller!]]
-            [sprog.input.keyboard :refer [add-key-callback
+            [hollow.input.keyboard :refer [add-key-callback
                                           add-left-right-key-callback]]))
 
 (def pasma-resolution 50)
@@ -52,13 +52,11 @@
                      [x y]))))))
 
 (defn display-program-pasma! [program]
-  (set-tex-data! (sprog-context)
-                 (:tex (sprog-state))
-                 :f8
-                 pasma-resolution
+  (set-tex-data! (hollow-context)
+                 (:tex (hollow-state))
                  (get-program-data program)))
 
-(defn update-sprog! [{:keys [gl tex] :as state}]
+(defn update-hollow! [{:keys [gl tex] :as state}]
   (with-context gl
     (maximize-gl-canvas {:square? true})
     (let [resolution (canvas-resolution)]
@@ -69,7 +67,7 @@
         "tex" tex}))
     state))
 
-(defn init-sprog! [gl]
+(defn init-hollow! [gl]
   (with-context gl
     (let [{:keys [move
                   get-program]
@@ -92,6 +90,6 @@
   (js/window.addEventListener
    "load"
    (fn [_]
-     (start-sprog!
-      init-sprog!
-      update-sprog!))))
+     (start-hollow!
+      init-hollow!
+      update-hollow!))))

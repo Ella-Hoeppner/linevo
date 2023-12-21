@@ -1,24 +1,23 @@
 (ns linevo.demos.warp-kudzu-demo
-  (:require [sprog.util :as u]
-            [sprog.webgl.core
-             :refer [start-sprog!
-                     sprog-state
-                     merge-sprog-state!]
+  (:require [hollow.util :as u]
+            [hollow.webgl.core
+             :refer [start-hollow!
+                     hollow-state
+                     merge-hollow-state!]
              :refer-macros [with-context]]
-            [sprog.kudzu.core :refer [kudzu->glsl]]
-            [sprog.kudzu.chunks.misc :refer [pos-chunk
-                                             sigmoid-chunk]]
-            [sprog.kudzu.chunks.color :refer [hsl-to-rgb-chunk]]
-            [sprog.webgl.shaders :refer [run-purefrag-shader!]]
-            [sprog.dom.canvas :refer [maximize-gl-canvas
-                                      canvas-resolution]]
+            [kudzu.core :refer [kudzu->glsl]]
+            [kudzu.chunks.misc :refer [sigmoid-chunk]]
+            [kudzu.chunks.color.hsl :refer [hsl->rgb-chunk]]
+            [hollow.webgl.shaders :refer [run-purefrag-shader!]]
+            [hollow.dom.canvas :refer [maximize-gl-canvas
+                                       canvas-resolution]]
             [linevo.engines.warp-kudzu :refer [respecify-program
                                                get-op-generator
                                                compile-program
                                                preprocess]]
             [linevo.controllers.basic :refer [create-controller!]]
-            [sprog.input.keyboard :refer [add-left-right-key-callback
-                                          add-key-callback]]))
+            [hollow.input.keyboard :refer [add-left-right-key-callback
+                                           add-key-callback]]))
 
 (def program-options
   {:dimensions 3})
@@ -29,20 +28,19 @@
 
 (defn program->glsl [program]
   (kudzu->glsl
-   pos-chunk
    sigmoid-chunk
-   hsl-to-rgb-chunk
+   hsl->rgb-chunk
    (compile-program program program-options)
    {:constants {:TAU u/TAU}}
    '{:precision {float highp
                  int highp
                  usampler2D highp}
-     :uniforms {size vec2
+     :uniforms {resolution vec2
                 tex sampler2D
                 time float}
      :outputs {frag-color vec4}
      :main
-     ((=vec3 pos (vec3 (uni->bi (getPos)) time))
+     ((=vec3 pos (vec3 (pixel-pos) time))
       (=vec3 noise (-> (twist pos)
                        (- pos)
                        (* 10)))
@@ -50,27 +48,27 @@
          (-> (vec3 (sigmoid noise.x)
                    (* 0.5 (sigmoid noise.y))
                    (sigmoid noise.z))
-             hsl2rgb
+             hsl->rgb
              (pow (vec3 2.2))
              (vec4 1))))}))
 
-(defn update-sprog! [{:keys [gl frag-glsl] :as state}]
+(defn update-hollow! [{:keys [gl frag-glsl] :as state}]
   (with-context gl
     (maximize-gl-canvas {:square? true})
     (let [resolution (canvas-resolution)]
       (run-purefrag-shader!
        frag-glsl
        resolution
-       {"size" resolution
-        "time" (* 0.01 (u/seconds-since-startup))})))
+       {:resolution resolution
+        :time (* 0.01 (u/seconds-since-startup))})))
   state)
 
 (defn display-program! [program]
-  (merge-sprog-state!
+  (merge-hollow-state!
    {:program program
     :frag-glsl (program->glsl program)}))
 
-(defn init-sprog! [gl]
+(defn init-hollow! [gl]
   (let [{:keys [move
                 get-program]
          :as controller}
@@ -94,10 +92,10 @@
   (js/window.addEventListener
    "load"
    (fn [_]
-     (start-sprog!
-      init-sprog!
-      update-sprog!)))
+     (start-hollow!
+      init-hollow!
+      update-hollow!)))
   (add-key-callback
    " "
-   #(display-program! (respecify-program (:program (sprog-state))
+   #(display-program! (respecify-program (:program (hollow-state))
                                          program-options))))

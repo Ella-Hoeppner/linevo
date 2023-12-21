@@ -1,9 +1,10 @@
 (ns linevo.engines.warp-kudzu
-  (:require [sprog.util :as u]
+  (:require [hollow.util :as u]
+            [kudzu.tools :refer [unquotable]]
             [linevo.rand :refer [rand-fn-rand-nth
                                  rand-direction]]
-            [sprog.kudzu.chunks.misc :refer [sympow-chunk]]
-            [sprog.kudzu.core :refer [combine-chunks]]))
+            [kudzu.chunks.misc :refer [sympow-chunk]]
+            [kudzu.core :refer [combine-chunks]]))
 
 (defn specify-warp-op [op & [{:keys [dimensions
                                      rand-fn]
@@ -93,7 +94,7 @@
                                 dimensions 1}}]]
   (combine-chunks
    sympow-chunk
-   (u/unquotable
+   (unquotable
     (let [x-type ('[float vec2 vec3 vec4] (dec dimensions))]
       {:functions
        {fn-name

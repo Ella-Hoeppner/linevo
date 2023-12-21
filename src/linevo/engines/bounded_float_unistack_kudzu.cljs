@@ -3,7 +3,7 @@
                                   prewalk-replace]]
             [linevo.rand :refer [rand-fn-rand-nth
                                  rand-fn-exponential]]
-            [sprog.util :as u]))
+            [kudzu.tools :refer [unquotable]]))
 
 (defn get-numeric-constant-generator [& [{:keys [rand-fn
                                                  lambda]
@@ -98,7 +98,7 @@
 (defn compile-program [in-count out-count program
                        & [{:keys [fn-name]
                            :or {fn-name 'evolved-fn}}]]
-  (u/unquotable
+  (unquotable
    (let [stack-sizes (count-stack-size in-count program)
          max-stack-size (apply max stack-sizes)
          ending-stack-size (peek stack-sizes)]

@@ -2,8 +2,10 @@
  :nrepl {:port 8703}
  :dev-http {8702 "out/public"}
  :builds
- {:browser {:target :browser
-            :output-dir "out/public/js"
-            :asset-path "/js"
-            :compiler-options {:warnings {:infer false}}
-            :modules {:base {:init-fn linevo.demos.bounded-float-unistack-kudzu-demo/init}}}}}
+ {:browser
+  {:target :browser
+   :output-dir "out/public/js"
+   :asset-path "/js"
+   :compiler-options {:warnings {:infer false}}
+   :modules 
+   {:base {:init-fn linevo.demos.bounded-float-unistack-kudzu-demo/init}}}}}
